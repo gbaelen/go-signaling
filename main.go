@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,7 +11,7 @@ import (
 var clientManager ClientManager = make(ClientManager)
 
 var port = os.Getenv("PORT")
-var addr = flag.String("addr", "localhost:"+port, "http service address")
+var addr = flag.String("addr", "0.0.0.0:"+port, "http service address")
 
 type Recv_message struct {
 	message string
@@ -35,6 +36,10 @@ func echo(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func home(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Hi there, I am running!")
+}
+
 func main() {
 	log.Println("Hello!!!!")
 	flag.Parse()
@@ -42,6 +47,8 @@ func main() {
 
 	upgrader.CheckOrigin = checkOrigin
 
+	http.HandleFunc("/", home)
 	http.HandleFunc("/echo", echo)
+	log.Println("Server listening on: ", *addr)
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
