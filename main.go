@@ -4,11 +4,13 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
 )
 
 var clientManager ClientManager = make(ClientManager)
 
-var addr = flag.String("addr", "localhost:8081", "http service address")
+var port = os.Getenv("PORT")
+var addr = flag.String("addr", "localhost:"+port, "http service address")
 
 type Recv_message struct {
 	message string
