@@ -42,6 +42,9 @@ const (
 	GetConnectedUsers  MessageType = "get_connected_users"
 	UserList           MessageType = "users_list"
 	UserNotFound       MessageType = "user_not_found"
+	NoPeer             MessageType = "no_peer_selected"
+	EmptyUser          MessageType = "wrong_parameter_empty_user_sent"
+	InvalidUser        MessageType = "invalid_user_selected"
 	Call               MessageType = "call"
 	Connect            MessageType = "connect"
 	Connected          MessageType = "connected"
@@ -52,7 +55,7 @@ const (
 )
 
 type Message struct {
-	Type MessageType `json:"message_type"`
+	Type MessageType `json:"message"`
 	Data interface{} `json:"data"`
 }
 
@@ -78,34 +81,48 @@ func (c *Client) HandleConnection(cm ClientManager) {
 			break
 		}
 
-		var received_data map[string]interface{}
+		var received_data Message
 		err = json.Unmarshal(message, &received_data)
 		if err != nil {
 			log.Fatal("Couldn't parse received message to json: ", err)
 		}
 
-		switch received_data["message"] {
+		switch received_data.Type {
 		case GetConnectedUsers:
 			keys := cm.getKeys()
 			c.sendMessage(UserList, keys)
 		case Call:
 			//Not pretty will have to find a better way to handle json in golang or a better way of managing marshal depending on type maybe?
-			user := received_data["data"].(string)
-			if cm.has(user) {
-				cm[user].peer = c
-				c.peer = cm[user]
-				c.sendMessage(ReadyForConnection, nil)
+			if received_data.Data != nil {
+				user_name := received_data.Data.(string)
+				if user_name != c.name {
+					if cm.has(user_name) {
+						cm[user_name].peer = c
+						c.peer = cm[user_name]
+						c.sendMessage(ReadyForConnection, nil)
+					} else {
+						c.sendMessage(UserNotFound, nil)
+					}
+				} else {
+					c.sendMessage(InvalidUser, nil)
+				}
 			} else {
-				c.sendMessage(UserNotFound, nil)
+				c.sendMessage(EmptyUser, nil)
 			}
 		case Connect:
 			c.sendMessage(Connected, nil)
 		case Offer:
-			c.peer.sendMessage(Offer, received_data["data"])
+			if c.checkPeer() {
+				c.peer.sendMessage(Offer, received_data.Data)
+			}
 		case Answer:
-			c.peer.sendMessage(Answer, received_data["data"])
+			if c.checkPeer() {
+				c.peer.sendMessage(Answer, received_data.Data)
+			}
 		case Candidate:
-			c.peer.sendMessage(Candidate, received_data["data"])
+			if c.checkPeer() {
+				c.peer.sendMessage(Candidate, received_data.Data)
+			}
 		}
 	}
 }
@@ -117,6 +134,15 @@ func (c *Client) sendMessage(message_type MessageType, data interface{}) {
 	}
 
 	c.conn.WriteMessage(1, message)
+}
+
+func (c *Client) checkPeer() bool {
+	if c.peer == nil {
+		c.sendMessage(NoPeer, nil)
+		return false
+	}
+
+	return true
 }
 
 type ClientManager map[string]*Client

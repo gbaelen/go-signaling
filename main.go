@@ -13,11 +13,6 @@ var clientManager ClientManager = make(ClientManager)
 var port = os.Getenv("PORT")
 var addr = flag.String("addr", "0.0.0.0:"+port, "http service address")
 
-type Recv_message struct {
-	message string
-	data    []byte
-}
-
 func echo(w http.ResponseWriter, r *http.Request) {
 	nb_client := len(clientManager)
 	client, err := NewClient(nb_client, w, r)
